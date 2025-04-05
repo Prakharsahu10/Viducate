@@ -40,6 +40,7 @@
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
+  --gradient-bg: linear-gradient(to bottom right, #2563EB, #9333EA); /* Blue to Purple */
   --radius-xl: calc(var(--radius) + 4px);
 }
 
@@ -120,5 +121,16 @@
     @apply bg-background text-foreground;
     background-color: var(--background, white) !important; /* Ensure background */
     color: var(--foreground, black) !important; /* Ensure text visibility */
+  }
+}
+
+@layer utilities {
+  .gradient {
+    background-image: var(--gradient-bg);
+  }
+
+  .gradient-title {
+    @apply font-extrabold tracking-tighter pr-2 pb-2 text-transparent bg-clip-text;
+    background-image: var(--gradient-bg);
   }
 }
