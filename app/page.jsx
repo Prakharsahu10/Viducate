@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { featuresData, Impact } from "@/data/landing";
 import Link from "next/link";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import ContactForm from "@/components/contact-form";
 
 export default function Home() {
   return (
@@ -66,6 +69,21 @@ export default function Home() {
               🚀 Get Started Now
             </Button>
           </Link>
+        </div>
+      </section>
+
+      {/* Contact Us Section */}
+      <section className="py-20 bg-gradient-to-b from-white to-blue-50">
+        <div className="container mx-auto px-4">
+          <h2 className="text-4xl font-bold text-center mb-4">Contact Us</h2>
+          <p className="text-gray-600 text-center max-w-3xl mx-auto mb-12">
+            Have questions about how Viducate can transform your educational
+            content? Our team is ready to help you create amazing learning
+            experiences.
+          </p>
+          <div className="max-w-4xl mx-auto">
+            <ContactForm />
+          </div>
         </div>
       </section>
     </div>

@@ -2,13 +2,13 @@ import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/header";
 import { ClerkProvider } from "@clerk/nextjs";
+import { Toaster } from "sonner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
   title: "Viducate",
   description: "AI Powered Education Video Creation",
   description: "Viducate - Your AI-Powered Educational Video Creation Tool",
-
 };
 
 export default function RootLayout({ children }) {
@@ -19,6 +19,7 @@ export default function RootLayout({ children }) {
           {/*header*/}
           <Header />
           <main className="min-h-screen">{children}</main>
+          <Toaster position="top-right" richColors />
 
           {/*footer*/}
           <footer className="bg-blue-50 py-12">
@@ -29,6 +30,5 @@ export default function RootLayout({ children }) {
         </body>
       </html>
     </ClerkProvider>
-
   );
 }
