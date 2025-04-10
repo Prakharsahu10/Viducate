@@ -1,7 +1,7 @@
 import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { WebhookEvent } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/lib/prisma";
 
 export async function POST(req) {
   // You can find this in the Clerk Dashboard -> Webhooks -> choose the webhook
@@ -70,7 +70,7 @@ export async function POST(req) {
     });
 
     try {
-      await prisma.user.create({
+      await db.user.create({
         data: {
           email,
           clerkUserId,

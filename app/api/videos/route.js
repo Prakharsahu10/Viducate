@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/prisma";
-import { auth } from "@clerk/nextjs";
 
 // POST /api/videos - Create a new video
 export async function POST(request) {
