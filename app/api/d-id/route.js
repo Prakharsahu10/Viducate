@@ -127,11 +127,15 @@ export async function POST(request) {
       console.log("Using direct API key format");
     }
 
-    // Create a talk request with minimal parameters
+    // Create a talk request with language configuration
     const talkParams = {
       script: {
         type: "text",
         input: content,
+        provider: {
+          type: "microsoft",
+          voice_id: getVoiceForLanguage(language),
+        },
       },
       config: {
         stitch: true,
@@ -212,4 +216,16 @@ function getAvatarId(avatarId) {
   };
 
   return presenters[avatarId] || presenters.default;
+}
+
+// Helper function to get the appropriate voice for a language
+function getVoiceForLanguage(language) {
+  const voiceMap = {
+    en: "en-US-JennyNeural",
+    es: "es-ES-ElviraNeural",
+    hi: "hi-IN-SwaraNeural",
+    fr: "fr-FR-DeniseNeural",
+  };
+
+  return voiceMap[language] || "en-US-JennyNeural"; // Default to English if no match
 }

@@ -7,7 +7,9 @@ export default function DashboardLayout({ children }) {
       <h1 className="text-6xl font-bold gradient-title mb-5">Dashboard</h1>
 
       {/*Dashboard Page */}
-      <Suspense fallback={<BarLoader className="mt-4" width={"100%"} color="#9333ea" />}>
+      <Suspense
+        fallback={<BarLoader className="mt-4" width={"100%"} color="#9333ea" />}
+      >
         {children}
       </Suspense>
     </div>
