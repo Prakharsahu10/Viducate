@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -68,20 +68,20 @@ export function VideoPage() {
   const videoId = params.id;
 
   // Create a simple video status component
-  const [status, setStatus] = useState('pending');
-  const [videoUrl, setVideoUrl] = useState('');
-  const [error, setError] = useState('');
+  const [status, setStatus] = useState("pending");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [pollCount, setPollCount] = useState(0);
   const [apiCalls, setApiCalls] = useState([]);
-  
+
   const router = useRouter();
   const timeoutRef = useRef(null);
-  
+
   useEffect(() => {
     let mounted = true;
     const controller = new AbortController();
-    
+
     const checkStatus = async () => {
       try {
         // Use exponential backoff strategy with jitter
@@ -91,97 +91,119 @@ export function VideoPage() {
         // Add some random jitter (±10% of base interval) to avoid synchronized polling
         const jitter = Math.floor(baseInterval * 0.1 * (Math.random() * 2 - 1));
         const pollInterval = baseInterval + jitter;
-        
+
         const timestamp = new Date().toLocaleTimeString();
-        const logMessage = `Poll #${pollCount+1} at ${timestamp} (${(pollInterval/1000).toFixed(1)}s interval)`;
+        const logMessage = `Poll #${pollCount + 1} at ${timestamp} (${(
+          pollInterval / 1000
+        ).toFixed(1)}s interval)`;
         console.log(logMessage);
-        
+
         if (mounted) {
-          setApiCalls(prev => [...prev, logMessage]);
+          setApiCalls((prev) => [...prev, logMessage]);
         }
-        
-        const response = await fetch(`http://localhost:8000/video-status/${videoId}`, {
-          signal: controller.signal,
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache',
-            'Expires': '0',
+
+        // Get the talk_id from localStorage
+        const talkId = localStorage.getItem(`talk_id_${videoId}`);
+        if (!talkId) {
+          throw new Error("Missing talk ID for this video");
+        }
+
+        // Use our status API to check the video
+        const response = await fetch(
+          `/api/d-id/status/${videoId}?talk_id=${talkId}`,
+          {
+            signal: controller.signal,
+            headers: {
+              "Cache-Control": "no-cache",
+              Pragma: "no-cache",
+              Expires: "0",
+            },
           }
-        });
-        
+        );
+
         if (!response.ok) {
           if (response.status === 429) {
             // Rate limit hit, wait longer and try again
             const retryMessage = `Rate limit hit. Waiting longer to retry...`;
             console.log(retryMessage);
             if (mounted) {
-              setApiCalls(prev => [...prev, retryMessage]);
-              setPollCount(prev => prev + 2); // Skip ahead in backoff
+              setApiCalls((prev) => [...prev, retryMessage]);
+              setPollCount((prev) => prev + 2); // Skip ahead in backoff
             }
-            
+
             if (timeoutRef.current) {
               clearTimeout(timeoutRef.current);
             }
-            
+
             timeoutRef.current = setTimeout(checkStatus, 60000); // Wait longer (1 minute)
             return;
           }
-          throw new Error(`Failed to fetch video status: ${response.statusText}`);
+          throw new Error(
+            `Failed to fetch video status: ${response.statusText}`
+          );
         }
-        
+
         const data = await response.json();
-        
+
         if (!mounted) return;
-        
+
         setStatus(data.status);
-        
-        if (data.status === 'completed') {
+
+        if (data.status === "completed") {
           setVideoUrl(data.video_url);
           setLoading(false);
           // Add final success message
           const successMessage = `✅ Video is ready! (${new Date().toLocaleTimeString()})`;
-          setApiCalls(prev => [...prev, successMessage]);
+          setApiCalls((prev) => [...prev, successMessage]);
+
+          // The video is already saved in the database by the status API
+          setApiCalls((prev) => [
+            ...prev,
+            `💾 Video saved to database with ID: ${videoId}`,
+          ]);
         } else {
           // Increment poll count to increase interval for next poll
-          setPollCount(prev => prev + 1);
-          
+          setPollCount((prev) => prev + 1);
+
           // Clear any existing timeout
           if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);
           }
-          
+
           // Set new timeout with increased interval
           timeoutRef.current = setTimeout(checkStatus, pollInterval);
-          
+
           // Add status update
           const statusMessage = `Current status: ${data.status}`;
-          setApiCalls(prev => [...prev, statusMessage]);
+          setApiCalls((prev) => [...prev, statusMessage]);
         }
       } catch (err) {
-        if (err.name === 'AbortError') {
-          console.log('Fetch aborted');
+        if (err.name === "AbortError") {
+          console.log("Fetch aborted");
           return;
         }
-        
+
         if (!mounted) return;
-        
+
         setError(`Failed to check video status: ${err.message}`);
         setLoading(false);
         console.error(err);
-        
+
         // Add error message
         const errorMessage = `❌ Error: ${err.message}`;
-        setApiCalls(prev => [...prev, errorMessage]);
+        setApiCalls((prev) => [...prev, errorMessage]);
       }
     };
-    
+
     if (videoId) {
       // Initial message
-      setApiCalls([`Starting status checks for video ID: ${videoId} (${new Date().toLocaleTimeString()})`]);
+      setApiCalls([
+        `Starting status checks for video ID: ${videoId} (${new Date().toLocaleTimeString()})`,
+      ]);
       // Delay the first check by 5 seconds
       timeoutRef.current = setTimeout(checkStatus, 5000);
     }
-    
+
     // Clean up function to prevent memory leaks and abort pending requests
     return () => {
       mounted = false;
@@ -190,8 +212,8 @@ export function VideoPage() {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [videoId]);
-  
+  }, [videoId, pollCount]);
+
   if (loading) {
     return (
       <div className="px-6 py-10 max-w-7xl mx-auto space-y-10">
@@ -211,7 +233,7 @@ export function VideoPage() {
       </div>
     );
   }
-  
+
   if (error) {
     return (
       <div className="px-6 py-10 max-w-7xl mx-auto space-y-10">
@@ -221,9 +243,9 @@ export function VideoPage() {
           </CardHeader>
           <CardContent className="space-y-5 text-center">
             <p className="text-gray-500">{error}</p>
-            <Button 
+            <Button
               className="bg-gradient-to-br from-blue-600 to-purple-600 text-white hover:opacity-90 transition-all duration-300"
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.push("/dashboard")}
             >
               Go back and try again
             </Button>
@@ -232,7 +254,7 @@ export function VideoPage() {
       </div>
     );
   }
-  
+
   return (
     <div className="px-6 py-10 max-w-7xl mx-auto space-y-10">
       <Card>
@@ -243,27 +265,23 @@ export function VideoPage() {
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="mb-6">
-            <video 
-              controls 
-              className="w-full rounded-lg shadow"
-              src={videoUrl}
-            >
+            <video controls className="w-full rounded-lg shadow" src={videoUrl}>
               Your browser does not support the video tag.
             </video>
           </div>
-          
+
           <div className="flex justify-between">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="text-blue-600 hover:text-blue-700"
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.push("/dashboard")}
             >
               Create Another Video
             </Button>
-            
-            <a 
-              href={videoUrl} 
-              download 
+
+            <a
+              href={videoUrl}
+              download
               className="px-4 py-2 bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-md hover:opacity-90 transition-all duration-300"
             >
               Download Video
@@ -280,51 +298,57 @@ export default function Page() {
 }
 
 export function DashboardPage() {
-  const [text, setText] = useState('');
-  const [language, setLanguage] = useState('en');
-  const [avatar, setAvatar] = useState('default');
+  const [text, setText] = useState("");
+  const [language, setLanguage] = useState("en");
+  const [avatar, setAvatar] = useState("default");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [customAvatar, setCustomAvatar] = useState(null);
-  
+
   const router = useRouter();
   const fileInputRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-    
+    if (!text.trim()) {
+      return;
+    }
+
     try {
-      // Create form data
-      const formData = new FormData();
-      formData.append('text', text);
-      formData.append('language', language);
-      formData.append('avatar', avatar);
-      
-      if (customAvatar) {
-        formData.append('custom_avatar', customAvatar);
-      }
-      
-      console.log('Submitting with language:', language);
-      
-      // Send request to backend
-      const response = await fetch('http://localhost:8000/generate-video/', {
-        method: 'POST',
-        body: formData,
+      setLoading(true);
+      setError("");
+
+      // Use our new API route to generate the video through D-ID
+      const response = await fetch("/api/d-id", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: text,
+          title: `Video ${new Date().toISOString().split("T")[0]}`,
+          description: text,
+          language: language,
+          avatarId: avatar,
+        }),
       });
-      
+
       if (!response.ok) {
-        throw new Error('Failed to generate video');
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate video");
       }
-      
+
       const data = await response.json();
-      
-      // Navigate to status page
-      router.push(`/videos/${data.id}`);
-    } catch (err) {
-      setError('Failed to generate video. Please try again.');
-      console.error(err);
+      console.log("Video generation started:", data);
+
+      // Store the talk_id for status checking
+      localStorage.setItem(`talk_id_${data.video_id}`, data.talk_id);
+
+      // Redirect to the video status page
+      router.push(`/videos/${data.video_id}`);
+    } catch (error) {
+      setError(error.message);
+      console.error("Error generating video:", error);
     } finally {
       setLoading(false);
     }
@@ -394,31 +418,32 @@ export function DashboardPage() {
                   {error}
                 </div>
               )}
-              
+
               <form onSubmit={handleSubmit}>
                 <div className="space-y-5">
                   <div>
                     <label className="text-sm mb-1 block">Content</label>
-                    <Textarea 
-                      placeholder="Enter your content in the language you select below..." 
-                      rows={5} 
+                    <Textarea
+                      placeholder="Enter your content in the language you select below..."
+                      rows={5}
                       value={text}
                       onChange={(e) => setText(e.target.value)}
                       required
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Important: Please write your text in the language you select below. The avatar will speak in that language.
+                      Important: Please write your text in the language you
+                      select below. The avatar will speak in that language.
                     </p>
                   </div>
 
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm mb-1 block">Language</label>
-                      <select 
+                      <select
                         className="w-full h-10 px-3 py-2 border rounded-md"
                         value={language}
                         onChange={(e) => {
-                          console.log('Language changed to:', e.target.value);
+                          console.log("Language changed to:", e.target.value);
                           setLanguage(e.target.value);
                         }}
                       >
@@ -428,7 +453,8 @@ export function DashboardPage() {
                         <option value="fr">French</option>
                       </select>
                       <p className="text-xs text-gray-500 mt-1">
-                        The avatar will speak in this language. Your text must be written in this language.
+                        The avatar will speak in this language. Your text must
+                        be written in this language.
                       </p>
                     </div>
                     <div>
@@ -450,8 +476,8 @@ export function DashboardPage() {
                     <label className="text-sm mb-1 block">
                       Upload Custom Avatar
                     </label>
-                    <Input 
-                      type="file" 
+                    <Input
+                      type="file"
                       ref={fileInputRef}
                       onChange={handleFileChange}
                       accept="image/*"
@@ -461,12 +487,12 @@ export function DashboardPage() {
                     </p>
                   </div>
 
-                  <Button 
+                  <Button
                     type="submit"
                     disabled={loading}
                     className="w-full bg-gradient-to-br from-blue-600 to-purple-600 text-white hover:opacity-90 transition-all duration-300"
                   >
-                    {loading ? 'Generating...' : 'Generate Video'}
+                    {loading ? "Generating..." : "Generate Video"}
                   </Button>
                 </div>
               </form>
