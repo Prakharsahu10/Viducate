@@ -145,57 +145,93 @@ export async function POST(request) {
 
     console.log("Request params:", JSON.stringify(talkParams));
 
-    // Make the API request
-    const talkResponse = await fetch(`${DID_API_URL}/talks`, {
-      method: "POST",
-      headers: {
-        Authorization: authHeader,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(talkParams),
-    });
+    // Modify your fetch request with a timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25-second timeout
 
-    console.log("D-ID API response status:", talkResponse.status);
-
-    if (!talkResponse.ok) {
-      let errorData;
-      try {
-        const errorText = await talkResponse.text();
-        console.error("Error response text:", errorText);
-        try {
-          errorData = JSON.parse(errorText);
-        } catch (parseError) {
-          errorData = { error: errorText };
-        }
-      } catch (textError) {
-        errorData = { error: "Could not read error response" };
-      }
-
-      console.error("D-ID API error details:", JSON.stringify(errorData));
-
-      // Update the video record to failed
-      await db.video.update({
-        where: { id: pendingVideo.id },
-        data: { status: "failed" },
+    try {
+      const talkResponse = await fetch(`${DID_API_URL}/talks`, {
+        method: "POST",
+        headers: {
+          Authorization: authHeader,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(talkParams),
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId); // Clear timeout if fetch completes
+
+      console.log("D-ID API response status:", talkResponse.status);
+
+      if (!talkResponse.ok) {
+        let errorData = { error: "Unknown D-ID API error" };
+        try {
+          const errorText = await talkResponse.text();
+          console.error("Error response text:", errorText);
+          try {
+            // Only try to parse as JSON if it looks like JSON
+            if (errorText.trim().startsWith("{")) {
+              errorData = JSON.parse(errorText);
+            } else {
+              errorData = { error: errorText };
+            }
+          } catch (parseError) {
+            errorData = { error: errorText };
+          }
+        } catch (textError) {
+          errorData = { error: "Could not read error response" };
+        }
+
+        console.error("D-ID API error details:", JSON.stringify(errorData));
+
+        // Update the video record to failed
+        await db.video.update({
+          where: { id: pendingVideo.id },
+          data: { status: "failed" },
+        });
+
+        return NextResponse.json(
+          {
+            error: "Failed to generate video with D-ID API",
+            details: errorData,
+          },
+          { status: 500 }
+        );
+      }
+
+      const talkData = await talkResponse.json();
+      console.log("D-ID API success response:", JSON.stringify(talkData));
+
+      // Return the talk ID and database ID
+      return NextResponse.json({
+        message: "Video generation started",
+        video_id: pendingVideo.id,
+        talk_id: talkData.id,
+        status: "pending",
+      });
+    } catch (error) {
+      if (error.name === "AbortError") {
+        console.error("D-ID API request timed out");
+        // Update video record to failed
+        await db.video.update({
+          where: { id: pendingVideo.id },
+          data: { status: "failed" },
+        });
+
+        return NextResponse.json(
+          { error: "D-ID API request timed out" },
+          { status: 504 }
+        );
+      }
+      // Handle other errors...
+      console.error("Error generating video:", error);
       return NextResponse.json(
-        { error: "Failed to generate video with D-ID API", details: errorData },
+        { error: "Failed to generate video", details: error.message },
         { status: 500 }
       );
     }
-
-    const talkData = await talkResponse.json();
-    console.log("D-ID API success response:", JSON.stringify(talkData));
-
-    // Return the talk ID and database ID
-    return NextResponse.json({
-      message: "Video generation started",
-      video_id: pendingVideo.id,
-      talk_id: talkData.id,
-      status: "pending",
-    });
   } catch (error) {
     console.error("Error generating video:", error);
     return NextResponse.json(
