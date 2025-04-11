@@ -23,6 +23,15 @@ model User {
   createdAt   DateTime @default(now())
   videos      Video[]
   role        String   @default("student") // "student" or "teacher"
+  // Gamification fields
+  points      Int      @default(0)
+  level       Int      @default(1)
+  streak      Int      @default(0)
+  lastActive  DateTime @default(now())
+  badges      UserBadge[]
+  quizResults QuizResult[]
+  achievements UserAchievement[]
+  videoProgress VideoProgress[]
 }
 
 model Video {
@@ -38,6 +47,7 @@ model Video {
   updatedAt   DateTime @updatedAt
   author      User     @relation(fields: [authorId], references: [id])
   authorId    Int
+  watchedBy   VideoProgress[]
 }
 
 model Avatar {
@@ -58,4 +68,93 @@ model Contact {
   newsletter  Boolean   @default(false)
   createdAt   DateTime  @default(now())
   status      String    @default("unread") // unread, read, replied
+}
+
+// Gamification models
+model Badge {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  description String
+  imageUrl    String
+  criteria    String     // Describes how to earn the badge
+  points      Int        @default(10)
+  users       UserBadge[]
+}
+
+model UserBadge {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  badge     Badge    @relation(fields: [badgeId], references: [id])
+  badgeId   Int
+  earnedAt  DateTime @default(now())
+
+  @@unique([userId, badgeId])
+}
+
+model Achievement {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  description String
+  imageUrl    String
+  criteria    String     // Describes how to earn the achievement
+  points      Int        @default(25)
+  users       UserAchievement[]
+}
+
+model UserAchievement {
+  id            Int         @id @default(autoincrement())
+  user          User        @relation(fields: [userId], references: [id])
+  userId        Int
+  achievement   Achievement @relation(fields: [achievementId], references: [id])
+  achievementId Int
+  earnedAt      DateTime    @default(now())
+
+  @@unique([userId, achievementId])
+}
+
+model Quiz {
+  id          Int         @id @default(autoincrement())
+  title       String
+  description String?
+  difficulty  String      // "easy", "medium", "hard"
+  points      Int         @default(10)
+  questions   Question[]
+  results     QuizResult[]
+  createdAt   DateTime    @default(now())
+}
+
+model Question {
+  id          Int         @id @default(autoincrement())
+  quiz        Quiz        @relation(fields: [quizId], references: [id])
+  quizId      Int
+  text        String
+  options     Json        // Array of possible answers
+  correctOption Int       // Index of the correct answer
+}
+
+model QuizResult {
+  id          Int       @id @default(autoincrement())
+  user        User      @relation(fields: [userId], references: [id])
+  userId      Int
+  quiz        Quiz      @relation(fields: [quizId], references: [id])
+  quizId      Int
+  score       Int
+  maxScore    Int
+  completedAt DateTime  @default(now())
+
+  @@unique([userId, quizId])
+}
+
+model VideoProgress {
+  id          Int       @id @default(autoincrement())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  video       Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  videoId     Int
+  progress    Float     @default(0) // Percentage watched (0-100)
+  completed   Boolean   @default(false)
+  lastWatched DateTime  @default(now())
+  
+  @@unique([userId, videoId])
 }

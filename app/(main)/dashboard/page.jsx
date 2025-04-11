@@ -5,6 +5,8 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { Doughnut, Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -19,6 +21,7 @@ import {
 } from "chart.js";
 import { useRouter } from "next/navigation";
 
+// Register ChartJS components
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -44,6 +47,17 @@ export default function Dashboard() {
     dailyActivity: [],
     languageBreakdown: [],
   });
+  
+  // Gamification state
+  const [gamificationStats, setGamificationStats] = useState({
+    points: 0,
+    level: 1,
+    streak: 0,
+    nextLevelPoints: 100,
+    badges: [],
+    rank: null
+  });
+  
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [text, setText] = useState("");
@@ -51,24 +65,26 @@ export default function Dashboard() {
   const [avatar, setAvatar] = useState("default");
   const [loading, setLoading] = useState(false);
   const [customAvatar, setCustomAvatar] = useState(null);
+  const [challenges, setChallenges] = useState([]);
 
   const router = useRouter();
   const fileInputRef = useRef(null);
 
-  // Add useEffect to fetch user statistics
+  // Add useEffect to fetch user statistics and gamification data
   useEffect(() => {
-    const fetchUserStats = async () => {
+    const fetchUserData = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch("/api/user/stats");
-
-        if (!response.ok) {
+        
+        // Fetch user stats
+        const statsResponse = await fetch("/api/user/stats");
+        if (!statsResponse.ok) {
           throw new Error("Failed to fetch user statistics");
         }
-
-        const data = await response.json();
+        const statsData = await statsResponse.json();
+        
         setUserStats(
-          data.stats || {
+          statsData.stats || {
             videosByStatus: {
               total: 0,
               completed: 0,
@@ -81,15 +97,61 @@ export default function Dashboard() {
             languageBreakdown: [],
           }
         );
+        
+        // Mock gamification data (replace with actual API call when implemented)
+        setGamificationStats({
+          points: 320,
+          level: 4,
+          streak: 3,
+          nextLevelPoints: 400,
+          badges: [
+            {
+              id: 1,
+              name: "First Video",
+              description: "Created your first educational video",
+              emoji: "🎬"
+            },
+            {
+              id: 2,
+              name: "Engagement Star",
+              description: "Logged in for 7 consecutive days",
+              emoji: "⭐"
+            }
+          ],
+          rank: 15
+        });
+        
+        // Mock challenge data
+        setChallenges([
+          {
+            id: 1,
+            title: "Create 3 Videos",
+            description: "Create 3 educational videos this week",
+            progress: 1,
+            total: 3,
+            points: 30,
+            daysLeft: 5
+          },
+          {
+            id: 2,
+            title: "Language Explorer",
+            description: "Create videos in 2 different languages",
+            progress: 1,
+            total: 2,
+            points: 25,
+            daysLeft: 3
+          }
+        ]);
+        
       } catch (err) {
-        console.error("Error fetching user statistics:", err);
+        console.error("Error fetching user data:", err);
         setError(err.message);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchUserStats();
+    fetchUserData();
   }, []);
 
   // Create dynamic chart data based on the API response
@@ -196,6 +258,12 @@ export default function Dashboard() {
     }
   };
 
+  // Calculate progress percentage for level
+  const progressToNextLevel = Math.min(
+    Math.floor((gamificationStats.points / gamificationStats.nextLevelPoints) * 100),
+    100
+  );
+
   return (
     <div className="space-y-10">
       {/* Header */}
@@ -207,6 +275,34 @@ export default function Dashboard() {
           Create and manage your educational videos
         </p>
       </div>
+
+      {/* Gamification Level Bar */}
+      <Card className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center">
+              <div className="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold mr-3">
+                {gamificationStats.level}
+              </div>
+              <div>
+                <h3 className="font-semibold">Level {gamificationStats.level}</h3>
+                <div className="text-sm text-gray-600">{gamificationStats.points} / {gamificationStats.nextLevelPoints} XP</div>
+              </div>
+            </div>
+            <Button 
+              onClick={() => router.push('/gamification')}
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
+              View Achievements
+            </Button>
+          </div>
+          <Progress value={progressToNextLevel} className="h-2" />
+          <div className="flex justify-between mt-2 text-xs text-gray-500">
+            <span>Current: Level {gamificationStats.level}</span>
+            <span>Next: Level {gamificationStats.level + 1}</span>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stats Overview */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -247,152 +343,205 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Charts Section */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Challenge and Daily Tasks Section */}
+        <Card className="md:col-span-1">
           <CardHeader>
-            <h3 className="text-lg font-semibold">
-              Watching Time (Last 7 Days)
-            </h3>
+            <h2 className="text-xl font-bold">Daily Challenges</h2>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <div className="h-64 flex items-center justify-center">
-                <p className="text-gray-500">Loading data...</p>
-              </div>
-            ) : error ? (
-              <div className="h-64 flex items-center justify-center">
-                <p className="text-red-500">Failed to load data</p>
-              </div>
-            ) : (
-              <Line
-                data={listeningData}
-                options={{ maintainAspectRatio: false }}
-                className="h-64"
-              />
-            )}
+            <div className="space-y-4">
+              {challenges.map((challenge) => (
+                <div key={challenge.id} className="border border-gray-200 rounded-lg p-3">
+                  <div className="flex justify-between items-start">
+                    <h3 className="font-medium">{challenge.title}</h3>
+                    <Badge className="bg-indigo-100 text-indigo-700">
+                      +{challenge.points} XP
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">{challenge.description}</p>
+                  <div className="mt-2">
+                    <div className="flex justify-between text-xs text-gray-600 mb-1">
+                      <span>Progress: {challenge.progress}/{challenge.total}</span>
+                      <span>{challenge.daysLeft} days left</span>
+                    </div>
+                    <Progress 
+                      value={(challenge.progress / challenge.total) * 100} 
+                      className="h-1.5" 
+                    />
+                  </div>
+                </div>
+              ))}
+              
+              <Button 
+                variant="outline" 
+                className="w-full text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                onClick={() => router.push('/gamification')}
+              >
+                View All Challenges
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <h3 className="text-lg font-semibold">Videos by Language</h3>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="h-64 flex items-center justify-center">
-                <p className="text-gray-500">Loading data...</p>
-              </div>
-            ) : error ? (
-              <div className="h-64 flex items-center justify-center">
-                <p className="text-red-500">Failed to load data</p>
-              </div>
-            ) : userStats.languageBreakdown.length === 0 ? (
-              <div className="h-64 flex items-center justify-center">
-                <p className="text-gray-500">No videos created yet</p>
-              </div>
-            ) : (
-              <Doughnut
-                data={activityData}
-                options={{ maintainAspectRatio: false }}
-                className="h-64"
-              />
-            )}
-          </CardContent>
-        </Card>
+        {/* Charts Section */}
+        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <h2 className="text-xl font-bold">Activity Timeline</h2>
+            </CardHeader>
+            <CardContent>
+              {userStats.dailyActivity.length > 0 ? (
+                <Line
+                  data={listeningData}
+                  options={{
+                    responsive: true,
+                    scales: {
+                      y: {
+                        beginAtZero: true,
+                      },
+                    },
+                  }}
+                />
+              ) : (
+                <div className="text-center text-gray-500 py-10">
+                  No activity data available
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <h2 className="text-xl font-bold">Language Breakdown</h2>
+            </CardHeader>
+            <CardContent>
+              {userStats.languageBreakdown.length > 0 ? (
+                <Doughnut
+                  data={activityData}
+                  options={{
+                    responsive: true,
+                    plugins: {
+                      legend: {
+                        position: "bottom",
+                      },
+                    },
+                  }}
+                />
+              ) : (
+                <div className="text-center text-gray-500 py-10">
+                  No language data available
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      {/* Video Creation Form */}
+      {/* Recent Accomplishments */}
       <Card>
-        <CardHeader className="text-center">
-          <h2 className="text-2xl font-bold text-gradient bg-gradient-to-br from-blue-600 to-purple-600 text-transparent bg-clip-text">
-            🎥 Create Educational Video
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            Convert your lessons into videos using AI avatars.
-          </p>
+        <CardHeader>
+          <h2 className="text-xl font-bold">Recent Accomplishments</h2>
         </CardHeader>
-        <CardContent className="space-y-5">
-          {error && (
-            <div className="p-3 bg-red-100 text-red-700 rounded">{error}</div>
-          )}
+        <CardContent>
+          <div className="flex flex-wrap gap-4 justify-center">
+            {gamificationStats.badges.length > 0 ? (
+              gamificationStats.badges.map(badge => (
+                <div key={badge.id} className="text-center w-24">
+                  <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-200 rounded-full mx-auto flex items-center justify-center mb-2">
+                    <span className="text-3xl">{badge.emoji}</span>
+                  </div>
+                  <h3 className="text-sm font-medium">{badge.name}</h3>
+                </div>
+              ))
+            ) : (
+              <div className="text-center text-gray-500 py-6 w-full">
+                Complete activities to earn badges and achievements!
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-5">
+      {/* Create Video Form */}
+      <Card className="border-t-4 border-t-indigo-500">
+        <CardHeader>
+          <h2 className="text-xl font-bold">Create a New Video</h2>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Video Content
+              </label>
+              <Textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Enter the educational content for your video..."
+                className="min-h-[150px]"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm mb-1 block">Content</label>
-                <Textarea
-                  placeholder="Enter your content in the language you select below..."
-                  rows={5}
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Important: Please write your text in the language you select
-                  below. The avatar will speak in that language.
-                </p>
+                <label className="block text-sm font-medium mb-1">
+                  Language
+                </label>
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="w-full rounded-md border border-gray-300 p-2"
+                >
+                  <option value="en">English</option>
+                  <option value="es">Spanish</option>
+                  <option value="fr">French</option>
+                  <option value="de">German</option>
+                  <option value="zh">Chinese</option>
+                  <option value="hi">Hindi</option>
+                </select>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm mb-1 block">Language</label>
-                  <select
-                    className="w-full h-10 px-3 py-2 border rounded-md"
-                    value={language}
-                    onChange={(e) => {
-                      console.log("Language changed to:", e.target.value);
-                      setLanguage(e.target.value);
-                    }}
-                  >
-                    <option value="en">English</option>
-                    <option value="es">Spanish</option>
-                    <option value="hi">Hindi</option>
-                    <option value="fr">French</option>
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    The avatar will speak in this language. Your text must be
-                    written in this language.
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm mb-1 block">Avatar</label>
-                  <select
-                    className="w-full h-10 px-3 py-2 border rounded-md"
-                    value={avatar}
-                    onChange={(e) => setAvatar(e.target.value)}
-                  >
-                    <option value="default">Default</option>
-                    <option value="rian">Rian</option>
-                    <option value="anna">Anna</option>
-                    <option value="daniel">Daniel</option>
-                  </select>
-                </div>
-              </div>
-
               <div>
-                <label className="text-sm mb-1 block">
+                <label className="block text-sm font-medium mb-1">Avatar</label>
+                <select
+                  value={avatar}
+                  onChange={(e) => setAvatar(e.target.value)}
+                  className="w-full rounded-md border border-gray-300 p-2"
+                >
+                  <option value="default">Default Teacher</option>
+                  <option value="business">Business Professional</option>
+                  <option value="casual">Casual Teacher</option>
+                  <option value="custom">Custom Avatar</option>
+                </select>
+              </div>
+            </div>
+
+            {avatar === "custom" && (
+              <div>
+                <label className="block text-sm font-medium mb-1">
                   Upload Custom Avatar
                 </label>
                 <Input
                   type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
                   accept="image/*"
+                  onChange={handleFileChange}
+                  ref={fileInputRef}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Upload a clear front-facing photo for best results.
+                  Upload a clear portrait photo for best results
                 </p>
               </div>
+            )}
 
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gradient-to-br from-blue-600 to-purple-600 text-white hover:opacity-90 transition-all duration-300"
-              >
-                {loading ? "Generating..." : "Generate Video"}
-              </Button>
-            </div>
+            <Button
+              type="submit"
+              className="w-full bg-indigo-600 hover:bg-indigo-700"
+              disabled={loading}
+            >
+              {loading ? "Creating Video..." : "Create Educational Video"}
+            </Button>
+
+            {error && <p className="text-red-500 text-center">{error}</p>}
           </form>
         </CardContent>
       </Card>
