@@ -36,8 +36,8 @@ const Challenges = ({ challenges = [] }) => {
     },
     {
       id: 3,
-      title: "Physics Challenge",
-      description: "Complete the physics quiz with at least 80% score",
+      title: "Take a Quizzz",
+      description: "Crush the quiz with an 80%+ score and prove you're a genius!",
       progress: 0,
       total: 1,
       points: 100,

@@ -20,6 +20,7 @@ import {
   Legend,
 } from "chart.js";
 import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
 
 // Register ChartJS components
 ChartJS.register(
@@ -281,7 +282,7 @@ export default function Dashboard() {
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center">
-              <div className="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold mr-3">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold mr-3 shadow-[0_0_10px_rgba(79,70,229,0.4)] animate-pulse">
                 {gamificationStats.level}
               </div>
               <div>
@@ -291,12 +292,15 @@ export default function Dashboard() {
             </div>
             <Button 
               onClick={() => router.push('/gamification')}
-              className="bg-indigo-600 hover:bg-indigo-700"
+              className="bg-gradient-to-r from-indigo-600 to-purple-700 text-white hover:from-indigo-700 hover:to-purple-800 shadow-[0_0_10px_rgba(79,70,229,0.4)] transition-all hover:scale-105 border border-white/20 relative overflow-hidden group"
             >
+              <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-[200%] transition-all duration-1000"></span>
               View Achievements
             </Button>
           </div>
-          <Progress value={progressToNextLevel} className="h-2" />
+          <Progress value={progressToNextLevel} className="h-2 bg-gray-200">
+            <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full"></div>
+          </Progress>
           <div className="flex justify-between mt-2 text-xs text-gray-500">
             <span>Current: Level {gamificationStats.level}</span>
             <span>Next: Level {gamificationStats.level + 1}</span>
@@ -375,9 +379,10 @@ export default function Dashboard() {
               
               <Button 
                 variant="outline" 
-                className="w-full text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                className="w-full bg-gradient-to-r from-indigo-600 to-purple-700 text-white hover:from-indigo-700 hover:to-purple-800 shadow-[0_0_10px_rgba(79,70,229,0.4)] transition-all hover:scale-105 border border-white/20 mt-2 relative overflow-hidden group"
                 onClick={() => router.push('/gamification')}
               >
+                <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-[200%] transition-all duration-1000"></span>
                 View All Challenges
               </Button>
             </div>
@@ -465,18 +470,18 @@ export default function Dashboard() {
       {/* Create Video Form */}
       <Card className="border-t-4 border-t-indigo-500">
         <CardHeader>
-          <h2 className="text-xl font-bold">Create a New Video</h2>
+          <h2 className="text-xl font-bold text-center">Create Content</h2>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium mb-1">
-                Video Content
+                Educational Content
               </label>
               <Textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="Enter the educational content for your video..."
+                placeholder="Enter your educational content here..."
                 className="min-h-[150px]"
                 required
               />
@@ -533,15 +538,106 @@ export default function Dashboard() {
               </div>
             )}
 
-            <Button
-              type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700"
-              disabled={loading}
-            >
-              {loading ? "Creating Video..." : "Create Educational Video"}
-            </Button>
+            {/* Centered action buttons */}
+            <div className="flex flex-col sm:flex-row justify-center gap-6 pt-6 mt-8">
+              <Button
+                type="submit"
+                className="bg-gradient-to-r from-indigo-600 via-purple-700 to-violet-800 text-white hover:from-indigo-700 hover:via-purple-800 hover:to-violet-900 py-6 px-10 text-lg font-bold shadow-[0_0_20px_rgba(79,70,229,0.6)] rounded-xl transition-all hover:shadow-[0_0_30px_rgba(79,70,229,0.8)] hover:scale-105 border-2 border-white/20 relative overflow-hidden group"
+                disabled={loading || !text.trim()}
+              >
+                <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-[200%] transition-all duration-1000"></span>
+                <span className="flex items-center">
+                  <span className="mr-3 text-2xl animate-bounce">🎬</span>
+                  {loading ? "Creating Video..." : "Create Educational Video"}
+                </span>
+              </Button>
+              
+              <Button
+                type="button"
+                className="bg-gradient-to-r from-violet-700 via-purple-700 to-indigo-600 text-white hover:from-violet-800 hover:via-purple-800 hover:to-indigo-700 py-6 px-10 text-lg font-bold shadow-[0_0_20px_rgba(124,58,237,0.6)] rounded-xl transition-all hover:shadow-[0_0_30px_rgba(124,58,237,0.8)] hover:scale-105 border-2 border-white/20 relative overflow-hidden group"
+                disabled={loading || !text.trim()}
+                onClick={async () => {
+                  if (!text.trim()) {
+                    return;
+                  }
 
-            {error && <p className="text-red-500 text-center">{error}</p>}
+                  try {
+                    setLoading(true);
+                    setError("");
+
+                    // Show loading toast
+                    const loadingToast = toast.loading("Generating quiz... This may take a minute.");
+
+                    // Call quiz generation API directly with content
+                    const response = await fetch("/api/quiz/generate", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        content: text,
+                        title: `Quiz on ${new Date().toLocaleDateString()}`,
+                        difficulty: "medium",
+                      }),
+                    });
+
+                    toast.dismiss(loadingToast);
+                    
+                    if (!response.ok) {
+                      const errorText = await response.text();
+                      let errorMessage = "Failed to generate quiz";
+                      let errorData = {};
+                      
+                      // Try to parse the error response as JSON
+                      try {
+                        errorData = JSON.parse(errorText);
+                        errorMessage = errorData.error || errorMessage;
+                        if (errorData.details) {
+                          console.error("Error details:", errorData.details);
+                        }
+                      } catch (parseError) {
+                        // If it's not valid JSON, log the raw response
+                        console.error("Invalid JSON in error response:", errorText);
+                      }
+                      
+                      console.error("Quiz generation error:", errorMessage);
+                      toast.error(errorMessage);
+                      throw new Error(errorMessage);
+                    }
+                    
+                    const responseText = await response.text();
+                    let data;
+                    
+                    try {
+                      data = JSON.parse(responseText);
+                    } catch (parseError) {
+                      console.error("Error parsing success response:", parseError);
+                      console.log("Raw response:", responseText);
+                      toast.error("Received invalid response format");
+                      setLoading(false);
+                      return;
+                    }
+                    
+                    toast.success("Quiz generated successfully!");
+                    
+                    router.push(`/quiz/${data.quiz.id}`);
+                  } catch (error) {
+                    console.error("Error generating quiz:", error);
+                    toast.error(error.message || "Failed to generate quiz. Please try again.");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+              >
+                <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-[200%] transition-all duration-1000"></span>
+                <span className="flex items-center">
+                  <span className="mr-3 text-2xl animate-pulse">🧠</span>
+                  Generate Quiz Only
+                </span>
+              </Button>
+            </div>
+
+            {error && <p className="text-red-500 text-center mt-4">{error}</p>}
           </form>
         </CardContent>
       </Card>

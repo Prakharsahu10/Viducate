@@ -19,6 +19,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+import { toast } from "react-hot-toast";
 
 ChartJS.register(
   CategoryScale,
@@ -247,13 +248,104 @@ export function VideoPage() {
               Create Another Video
             </Button>
 
-            <a
-              href={videoUrl}
-              download
-              className="px-4 py-2 bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-md hover:opacity-90 transition-all duration-300"
-            >
-              Download Video
-            </a>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="bg-gradient-to-br from-green-600 to-teal-600 text-white hover:opacity-90"
+                onClick={async () => {
+                  try {
+                    // Show a loading state
+                    const loadingToast = toast?.loading 
+                      ? toast.loading("Generating quiz... This may take a minute.") 
+                      : alert("Generating quiz... This may take a minute.");
+                    
+                    const response = await fetch("/api/quiz/generate", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({ videoId }),
+                    });
+                    
+                    // Dismiss loading toast if toast library is available
+                    if (toast?.dismiss) toast.dismiss(loadingToast);
+                    
+                    if (!response.ok) {
+                      const errorText = await response.text();
+                      let errorMessage = "Failed to generate quiz";
+                      let errorData = {};
+                      
+                      // Try to parse the error response as JSON
+                      try {
+                        errorData = JSON.parse(errorText);
+                        errorMessage = errorData.error || errorMessage;
+                        if (errorData.details) {
+                          console.error("Error details:", errorData.details);
+                        }
+                      } catch (parseError) {
+                        // If it's not valid JSON, log the raw response
+                        console.error("Invalid JSON in error response:", errorText);
+                      }
+                      
+                      console.error("Quiz generation error:", errorMessage);
+                      
+                      // Show error toast if toast library is available
+                      if (toast?.error) {
+                        toast.error(errorMessage);
+                      } else {
+                        alert(errorMessage);
+                      }
+                      
+                      throw new Error(errorMessage);
+                    }
+                    
+                    const responseText = await response.text();
+                    let data;
+                    
+                    try {
+                      data = JSON.parse(responseText);
+                    } catch (parseError) {
+                      console.error("Error parsing success response:", parseError);
+                      console.log("Raw response:", responseText);
+                      
+                      const errorMsg = "Received invalid response format";
+                      if (toast?.error) {
+                        toast.error(errorMsg);
+                      } else {
+                        alert(errorMsg);
+                      }
+                      return;
+                    }
+                    
+                    // Show success toast if toast library is available
+                    if (toast?.success) {
+                      toast.success("Quiz generated successfully!");
+                    }
+                    
+                    router.push(`/quiz/${data.quiz.id}`);
+                  } catch (error) {
+                    console.error("Error generating quiz:", error);
+                    
+                    // Show error toast if toast library is available
+                    if (toast?.error) {
+                      toast.error(error.message || "Failed to generate quiz. Please try again.");
+                    } else {
+                      alert(error.message || "Failed to generate quiz. Please try again.");
+                    }
+                  }
+                }}
+              >
+                <span className="mr-2">🧠</span> Generate Quiz
+              </Button>
+
+              <a
+                href={videoUrl}
+                download
+                className="px-4 py-2 bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-md hover:opacity-90 transition-all duration-300"
+              >
+                Download Video
+              </a>
+            </div>
           </div>
         </CardContent>
       </Card>
