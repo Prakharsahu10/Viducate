@@ -48,7 +48,7 @@ Viducate transforms the way we learn by converting educational content into enga
 
 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/viducate.git
+git clone https://github.com/POWERVHD/Viducate_Final.git
 cd viducate
 ```
 
