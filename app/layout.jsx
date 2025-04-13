@@ -9,6 +9,9 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata = {
   title: "Viducate - AI-Powered Educational Videos",
   description: "Create engaging educational videos with AI",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({ children }) {
@@ -18,15 +21,13 @@ export default function RootLayout({ children }) {
         <body className={inter.className}>
           {/* Header */}
           <Header />
-          
+
           {/* Main content */}
-          <main className="min-h-screen pt-24">
-            {children}
-          </main>
-          
+          <main className="min-h-screen pt-24">{children}</main>
+
           {/* Toast notifications */}
           <Toaster position="top-center" />
-          
+
           {/* Footer */}
           <footer className="bg-blue-50 py-12">
             <div className="container mx-auto px-4 text-center text-gray-600">
@@ -37,4 +38,4 @@ export default function RootLayout({ children }) {
       </html>
     </ClerkProvider>
   );
-} 
+}
